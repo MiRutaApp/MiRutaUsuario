@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">MiRuta</string>
+    <string name="title_activity_maps">Map</string>
+
+    <string name="title_activity_splash">SplashActivity</string>
+    <string name="usuario">Usuario</string>
+    <string name="contrasena">Contraseña</string>
+    <string name="ingresar">Ingresar</string>
+    <string name="name">Empresa</string>
+    <string name="telephone">Telefono</string>
+    <string name="rutas">Rutas:</string>
+    <string name="seguir_ruta">¿Seguir ruta?</string>
+</resources>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <Text
+        android:id="@+id/text_item_2"
+        android:title="Empresas"/>
+
+    <Text
+        android:id="@+id/text_item_1"
+        android:title="Mis rutas"/>
+
+    <Checkbox
+        android:id="@+id/checkbox_item_1"
+        android:title="Mostrar todas las rutas"
+        android:checked="true"
+        android:checkable="true" />
+
+    <TextWithBadge
+        android:id="@+id/text_with_badge_item_1"
+        android:title="Puntaje"
+        app:badgeText="25"/>
+
+    <Switch
+        android:id="@+id/switch_item_1"
+        android:title="Apagar notificaciones"
+        android:checked="false"
+        android:checkable="true"/>
+
+    <Separator
+        android:id="@+id/separator_item_1" />
+
+
+
+</menu>

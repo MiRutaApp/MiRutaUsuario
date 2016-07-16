@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:clickable="true"
+    android:focusable="true"
+    android:background="?attr/selectableItemBackground"
+    android:padding="8dp">
+
+
+    <TextView
+        android:id="@+id/route_name"
+        android:layout_width="match_parent"
+        android:layout_height="45dp"
+        android:paddingStart="?android:attr/expandableListPreferredItemPaddingLeft"
+        android:gravity="center_vertical"
+        android:textSize="18sp"/>
+
+    <ImageView
+        android:layout_gravity="center_horizontal"
+        android:id="@+id/route_image"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_below="@+id/route_name"
+        android:layout_centerHorizontal="true" />
+
+
+</RelativeLayout>
