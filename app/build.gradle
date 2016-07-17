@@ -34,15 +34,15 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:multidex:1.0.0'
     compile 'com.google.android.gms:play-services:9.0.2'
-    compile'com.android.support:appcompat-v7:23.4.0'
-    compile'com.android.support:design:23.4.0'
+    compile 'com.android.support:appcompat-v7:23.4.0'
+    compile 'com.android.support:design:23.4.0'
 
     //ButterKnife
-    compile'com.jakewharton:butterknife:8.0.1'
+    compile 'com.jakewharton:butterknife:8.0.1'
     apt 'com.jakewharton:butterknife-compiler:8.0.1'
 
     //Parse
-    compile'com.parse:parse-android:1.13.0'
+    compile 'com.parse:parse-android:1.13.0'
 
     //MapsUtils
     compile 'com.google.maps.android:android-maps-utils:0.4+'
@@ -54,5 +54,5 @@ dependencies {
     compile 'com.squareup.picasso:picasso:2.5.2'
 
     //Volley
-    compile project(path:':volley')
+    compile project(path: ':volley')
 }
