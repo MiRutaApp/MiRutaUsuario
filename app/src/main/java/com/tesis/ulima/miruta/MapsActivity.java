@@ -1,17 +1,29 @@
 package com.tesis.ulima.miruta;
 
+import android.*;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
+import android.provider.Settings;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.AdapterView;
+import android.widget.AutoCompleteTextView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -21,7 +33,17 @@ import com.android.volley.toolbox.Volley;
 import com.appeaser.sublimenavigationviewlibrary.OnNavigationMenuEventListener;
 import com.appeaser.sublimenavigationviewlibrary.SublimeBaseMenuItem;
 import com.appeaser.sublimenavigationviewlibrary.SublimeNavigationView;
+import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.AutocompletePrediction;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.PlaceBuffer;
+import com.google.android.gms.location.places.Places;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -29,6 +51,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
@@ -55,22 +78,30 @@ import java.util.Map;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, MiRutaContract.FetchRutas {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, MiRutaContract.FetchRutas, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     public static final String TAG = "MapsActivity";
     private static GoogleMap mMap;
     private static Polyline polylineFinal;
     private GoogleApiClient googleApiClient;
     private LocationManager locationManager;
     private LocationListener locationListener;
+    private LocationRequest locationRequest;
     private LatLng latLng;
     private MiRutaContract.Request mRequest;
     private int finalRequest = 0;
     private boolean terminadoBuses;
     private boolean terminadoPoly;
+    private PlaceAutocompleteAdapter placeAutocompleteAdapter;
+    private static final LatLngBounds PERU = new LatLngBounds(
+            new LatLng(-12.5, -78), new LatLng(-11, -76));
+
+    private boolean found = false;
 
     private LinearLayout linear_perfil;
     private TextView linear_perfil_name;
 
+    @BindView(R.id.autocomplete_places)
+    AutoCompleteTextView autocomplete_places;
     @BindView(R.id.navigation_view)
     SublimeNavigationView snv;
 
@@ -93,12 +124,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         linear_perfil.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent=new Intent(MapsActivity.this,ProfileActivity.class);
+                Intent intent = new Intent(MapsActivity.this, ProfileActivity.class);
                 startActivity(intent);
-                Log.d(TAG,"linear_perfil clicked");
+                Log.d(TAG, "linear_perfil clicked");
             }
         });
-        linear_perfil_name=(TextView)snv.getHeaderView().findViewById(R.id.tvNamePlate);
+        linear_perfil_name = (TextView) snv.getHeaderView().findViewById(R.id.tvNamePlate);
         linear_perfil_name.setText(ParseUser.getCurrentUser().getUsername());
         snv.setNavigationMenuEventListener(new OnNavigationMenuEventListener() {
             @Override
@@ -106,7 +137,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                                  SublimeBaseMenuItem menuItem) {
                 switch (event) {
                     case CHECKED:
-                        if(R.id.checkbox_item_1==menuItem.getItemId()){
+                        if (R.id.checkbox_item_1 == menuItem.getItemId()) {
                             for (Map.Entry<String, Ruta> ruta : Utils.rutas.entrySet()) {
                                 ruta.getValue().setState(true);
                             }
@@ -115,7 +146,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         Log.i(TAG, "Item checked");
                         break;
                     case UNCHECKED:
-                        if(R.id.checkbox_item_1==menuItem.getItemId()){
+                        if (R.id.checkbox_item_1 == menuItem.getItemId()) {
                             for (Map.Entry<String, Ruta> ruta : Utils.rutas.entrySet()) {
                                 ruta.getValue().setState(false);
                             }
@@ -136,11 +167,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Intent intent;
                 switch (menuItem.getItemId()) {
                     case R.id.text_item_1:
-                        intent= new Intent(MapsActivity.this,MisRutasActivity.class);
+                        intent = new Intent(MapsActivity.this, MisRutasActivity.class);
                         startActivity(intent);
                         break;
                     case R.id.text_item_2:
-                        intent= new Intent(MapsActivity.this,EmpresasActivity.class);
+                        intent = new Intent(MapsActivity.this, EmpresasActivity.class);
                         startActivity(intent);
                         break;
                 }
@@ -151,6 +182,54 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    private AdapterView.OnItemClickListener autocompleteClickListener
+            = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            final AutocompletePrediction item = placeAutocompleteAdapter.getItem(position);
+            final String placeId = item.getPlaceId();
+            final CharSequence primaryText = item.getPrimaryText(null);
+
+            autocomplete_places.requestFocus();
+            InputMethodManager in = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            in.hideSoftInputFromWindow(autocomplete_places.getWindowToken(), 0);
+
+            Log.i(TAG, "Autocomplete item selected: " + primaryText);
+
+            PendingResult<PlaceBuffer> placeResult = Places.GeoDataApi
+                    .getPlaceById(googleApiClient, placeId);
+            placeResult.setResultCallback(updatePlaceDetailsCallback);
+
+            Toast.makeText(getApplicationContext(), "Dirigiendolo hacia: " + primaryText,
+                    Toast.LENGTH_SHORT).show();
+            Log.i(TAG, "Called getPlaceById to get Place details for " + placeId);
+        }
+    };
+
+    private ResultCallback<PlaceBuffer> updatePlaceDetailsCallback
+            = new ResultCallback<PlaceBuffer>() {
+        @Override
+        public void onResult(PlaceBuffer places) {
+            if (!places.getStatus().isSuccess()) {
+                // Request did not complete successfully
+                Log.e(TAG, "Place query did not complete. Error: " + places.getStatus().toString());
+                places.release();
+                return;
+            }
+            // Get the Place object from the buffer.
+            final Place place = places.get(0);
+
+            CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(place.getLatLng(), 17);
+            mMap.moveCamera(cameraUpdate);
+            Snackbar.make(findViewById(R.id.map), "Escoge un bus o paradero para seguir la ruta", Snackbar.LENGTH_LONG).setAction("Deshacer", new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Log.d(TAG, "setUpMap onClick");
+                }
+            }).show();
+            places.release();
+        }
+    };
 
     /**
      * Manipulates the map once available.
@@ -165,59 +244,86 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        //noinspection MissingPermission
-        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        //noinspection MissingPermission
-        mMap.setMyLocationEnabled(true);
-
-        //noinspection MissingPermission
-        Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        Log.d(TAG, "getLastKnownLocation " + location.getLatitude() + " " + location.getLongitude());
-        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(latLng, 17);
-        mMap.moveCamera(cameraUpdate);
-        //noinspection MissingPermission
-        //locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
-
         mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
             @Override
             public void onInfoWindowClick(Marker marker) {
-                if(Utils.rutasParaderos.containsKey(marker)) {
+                if (Utils.rutasParaderos.containsKey(marker)) {
                     Intent intent = new Intent(MapsActivity.this, SeguirRutaActivity.class);
                     intent.putExtra("id", Utils.rutasParaderos.get(marker));
+                    Utils.mMarker = marker;
                     startActivity(intent);
                 }
             }
         });
 
+        autocomplete_places.setOnItemClickListener(autocompleteClickListener);
+        googleApiClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this).enableAutoManage(this, 0, this)
+                .addApi(LocationServices.API).addApi(Places.GEO_DATA_API).build();
+        locationRequest = LocationRequest.create()
+                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                .setInterval(10 * 1000)        // 10 seconds, in milliseconds
+                .setFastestInterval(1 * 1000); // 1 second, in millisecond
+        locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(new LatLng(location.getLatitude(), location.getLongitude()), 17);
+                mMap.moveCamera(cameraUpdate);
+            }
+        };
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            final AlertDialog.Builder builder =
+                    new AlertDialog.Builder(this);
+            final String action = Settings.ACTION_LOCATION_SOURCE_SETTINGS;
+            final String message = "Por favor, habilite su servicio de GPS";
+
+            builder.setMessage(message)
+                    .setPositiveButton("OK",
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface d, int id) {
+                                    startActivity(new Intent(action));
+                                    d.dismiss();
+                                }
+                            })
+                    .setNegativeButton("Cancelar",
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface d, int id) {
+                                    d.cancel();
+                                    finish();
+                                }
+                            });
+            builder.create().show();
+        }
+
     }
 
     @Override
     public void fetchRutas(List<ParseObject> rutas) {
-        String last="";
-        Log.d(TAG,"rutas size: "+rutas.size());
+        String last = "";
+        Log.d(TAG, "rutas size: " + rutas.size());
         for (ParseObject parseObject : rutas) {
             Ruta ruta = new Ruta();
             mRequest.requestBuses(parseObject);
             ruta.setNombre(parseObject.getString("nombre"));
             ruta.setCamino((ArrayList<ParseGeoPoint>) parseObject.get("camino"));
             ruta.setObjectId(parseObject.getObjectId());
-            String first="";
+            String first = "";
             try {
-                first=parseObject.getParseObject("empresa").fetchIfNeeded().getString("nombre");
+                first = parseObject.getParseObject("empresa").fetchIfNeeded().getString("nombre");
                 ruta.setEmpresaId(parseObject.getParseObject("empresa").fetchIfNeeded().getObjectId());
             } catch (ParseException e) {
                 e.printStackTrace();
             }
-            if(first.equals(last)){
+            if (first.equals(last)) {
                 Utils.empresaRutas.get(last).add(ruta);
-            }else {
+            } else {
                 Utils.nombreEmpresas.add(first);
-                List<Ruta> dummy=new ArrayList<>();
+                List<Ruta> dummy = new ArrayList<>();
                 dummy.add(ruta);
-                Utils.empresaRutas.put(first,dummy);
-                Utils.empresaRutas.put(first,dummy);
-                last=first;
+                Utils.empresaRutas.put(first, dummy);
+                Utils.empresaRutas.put(first, dummy);
+                last = first;
             }
             Utils.rutas.put(parseObject.getObjectId(), ruta);
             fetchSnapRoad((ArrayList<ParseGeoPoint>) parseObject.get("camino"),
@@ -227,9 +333,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void fetchBuses(List<ParseObject> buses, String rutaId) {
-        List<Unidad> unidadList=new ArrayList<>();
+        List<Unidad> unidadList = new ArrayList<>();
         for (ParseObject parseObject : buses) {
-            Unidad unidad=new Unidad();
+            Unidad unidad = new Unidad();
             unidad.setPosicion((ParseGeoPoint) parseObject.get("posicion"));
             unidad.setNombre(parseObject.getString("nombre"));
             unidad.setCapacidad(parseObject.getInt("capacidad"));
@@ -244,10 +350,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             unidadList.add(unidad);
         }
-        Utils.rutasUnidad.put(rutaId,unidadList);
-        if(Utils.rutas.size()==Utils.rutasUnidad.size()){
-            terminadoBuses=true;
-            if(terminadoPoly){
+        Utils.rutasUnidad.put(rutaId, unidadList);
+        if (Utils.rutas.size() == Utils.rutasUnidad.size()) {
+            terminadoBuses = true;
+            if (terminadoPoly) {
                 populateMap();
             }
         }
@@ -255,12 +361,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void fetchEmpresas(List<ParseObject> empresas) {
-        Log.d(TAG,"empresas size: "+empresas.size());
-        for (ParseObject parseObject:empresas){
-            Empresa empresa= new Empresa();
+        Log.d(TAG, "empresas size: " + empresas.size());
+        for (ParseObject parseObject : empresas) {
+            Empresa empresa = new Empresa();
             empresa.setObjectId(parseObject.getObjectId());
             empresa.setNombre(parseObject.getString("nombre"));
-            Utils.empresas.put(parseObject.getObjectId(),empresa);
+            Utils.empresas.put(parseObject.getObjectId(), empresa);
         }
     }
 
@@ -292,13 +398,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             String encodedLine = response.getJSONArray("routes").getJSONObject(0).getJSONObject("overview_polyline").getString("points");
                             Utils.rutas.get(objectId).setEncodedLine(encodedLine);
                             finalRequest++;
-                            if(finalRequest==Utils.rutas.size()){
-                                terminadoPoly=true;
-                                if(terminadoBuses){
+                            if (finalRequest == Utils.rutas.size()) {
+                                terminadoPoly = true;
+                                if (terminadoBuses) {
                                     populateMap();
                                 }
                             }
-                            Log.d(TAG,"count: "+finalRequest);
+                            Log.d(TAG, "count: " + finalRequest);
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
@@ -317,32 +423,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public static void populateMap() {
         Log.d("populateMap", "making before call");
-        /*if(polylineFinal!=null){
-            polylineFinal.remove();
-            Log.d(TAG, "removing polylines");
-        }*/
         mMap.clear();
-        int max= Utils.rutas.size();
-        float flo=(float)360/(max+1);
-        float flo2=(float)360/(max+1);
+        int max = Utils.rutas.size();
+        float flo = (float) 360 / (max + 1);
+        float flo2 = (float) 360 / (max + 1);
         for (Map.Entry<String, Ruta> ruta : Utils.rutas.entrySet()) {
-            if(ruta.getValue().isState()) {
+            if (ruta.getValue().isState()) {
                 for (ParseGeoPoint parseGeoPoint : ruta.getValue().getCamino()) {
                     LatLng latLng = new LatLng(parseGeoPoint.getLatitude(), parseGeoPoint.getLongitude());
                     MarkerOptions markerOptions = new MarkerOptions();
                     markerOptions.position(latLng);
                     markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.busstop));
                     markerOptions.title(ruta.getValue().getNombre());
-                    Utils.rutasParaderos.put(mMap.addMarker(markerOptions),ruta.getValue().getObjectId());
+                    Utils.rutasParaderos.put(mMap.addMarker(markerOptions), ruta.getValue().getObjectId());
                 }
-                for(Unidad unidad:Utils.rutasUnidad.get(ruta.getValue().getObjectId())){
+                for (Unidad unidad : Utils.rutasUnidad.get(ruta.getValue().getObjectId())) {
                     MarkerOptions markerOptions = new MarkerOptions();
-                    LatLng latLng=new LatLng(unidad.getPosicion().getLatitude(),unidad.getPosicion().getLongitude());
+                    LatLng latLng = new LatLng(unidad.getPosicion().getLatitude(), unidad.getPosicion().getLongitude());
                     markerOptions.position(latLng);
                     markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.green));
                     markerOptions.title(ruta.getValue().getNombre());
-                    markerOptions.snippet("Capacidad de: "+String.valueOf(unidad.getMaxCapacidad()));
-                    Utils.rutasParaderos.put(mMap.addMarker(markerOptions),ruta.getValue().getObjectId());
+                    markerOptions.snippet("Capacidad de: " + String.valueOf(unidad.getMaxCapacidad()));
+                    Utils.rutasParaderos.put(mMap.addMarker(markerOptions), ruta.getValue().getObjectId());
                 }
                 PolylineOptions polylineOptions = new PolylineOptions().geodesic(true);
                 polylineOptions.color(Color.HSVToColor(190, new float[]{flo, 0.7f, 0.8f})).width(15);
@@ -367,20 +469,59 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onResume() {
         super.onResume();
-        /*if (locationManager != null) {
-            //noinspection MissingPermission
-            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
-        }*/
+        Log.d(TAG, "onResume");
+
     }
 
     @Override
     public void showRequestError(String error) {
-
+        Log.e(TAG, error);
     }
 
     @Override
     public void onBackPressed() {
         super.onBackPressed();
         finish();
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        Log.d(TAG, "onConnected");
+        if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            placeAutocompleteAdapter = new PlaceAutocompleteAdapter(this, googleApiClient, PERU,
+                    null);
+            autocomplete_places.setAdapter(placeAutocompleteAdapter);
+
+            Location location = LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
+            if (location == null) {
+                try {
+                    int permissionCheck = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION);
+
+                    if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                        LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, locationListener);
+                    }
+                } catch (Exception e) {
+                    Log.e("Mapaerror", e.getMessage());
+                }
+            } else if (Utils.mMarker != null) {
+                CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(Utils.mMarker.getPosition(), 17);
+                mMap.moveCamera(cameraUpdate);
+                Utils.mMarker = null;
+            } else {
+                CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(new LatLng(location.getLatitude(), location.getLongitude()), 17);
+                mMap.moveCamera(cameraUpdate);
+                mMap.setMyLocationEnabled(true);
+            }
+        }
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
     }
 }

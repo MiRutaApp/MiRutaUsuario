@@ -10,4 +10,5 @@
     <string name="telephone">Telefono</string>
     <string name="rutas">Rutas:</string>
     <string name="seguir_ruta">¿Seguir ruta?</string>
+    <string name="autocomplete_hint">Destino</string>
 </resources>

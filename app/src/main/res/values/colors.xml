@@ -7,4 +7,6 @@
     <color name="black_overlay">#66000000</color>
     <color name="material_red">#F44336</color>
     <color name="polyline">#02b4fd</color>
+
+    <color name="white">#FFFFFF</color>
 </resources>

@@ -21,4 +21,5 @@ public class Utils {
     public static HashMap<String,List<Unidad>> rutasUnidad =new HashMap<>();  //<rutaid,list<Unidad>>
     public static HashMap<Marker,String> rutasParaderos=new HashMap<>();      //Marker,rutaId
     public static boolean fin;
+    public static Marker mMarker;
 }
